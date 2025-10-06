@@ -21,7 +21,7 @@ pub mod foreign {
     pub const SCT_VERSION_NOT_SET: sct_version_t = -1;
     pub const SCT_VERSION_V1: sct_version_t = 0;
 
-    extern "C" {
+    unsafe extern "C" {
         pub fn i2d_re_X509_tbs(
             x: *mut openssl_sys::X509,
             pp: *mut *mut std::os::raw::c_uchar,
