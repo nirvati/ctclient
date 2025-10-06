@@ -1,10 +1,10 @@
 [package]
-name = "ctclient"
+name = "ctclient-async"
 description = "Certificate Transparency Log client suitable for monitoring, quick SCT validation, gossiping, etc."
 license = "MIT"
-repository = "https://github.com/micromaomao/ctclient"
-version = "0.4.5"
-authors = ["Mao Wtm <m@maowtm.org>"]
+repository = "https://github.com/nirvati/ctclient"
+version = "0.5.0"
+authors = ["Aaron Dewes <aaron@nirvati.de>"]
 edition = "2024"
 documentation = "https://docs.rs/ctclient"
 readme = "README.md"

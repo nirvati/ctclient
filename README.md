@@ -6,8 +6,6 @@
 
 Certificate Transparency Log client suitable for monitoring, quick SCT validation, gossiping, etc.
 
-(Not a full-fledged client with UI and everything - will work on that later. This is just a library to make your own client with.)
-
 ## Build requirement
 
 OpenSSL >= 1.1.0
@@ -24,7 +22,6 @@ OpenSSL >= 1.1.0
 ## TODOs
 
 * **Implement gossiping protocols**
-* Use async IO (currently all API requests are blocking)
 * A helper to monitor multiple logs simultaneously
 * Certificate submission
 * More test coverage
