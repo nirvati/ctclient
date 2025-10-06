@@ -7,8 +7,8 @@ use openssl::x509::X509;
 use rusqlite::types::Value;
 use rusqlite::{Connection, OptionalExtension};
 
-use ctclient::CTClient;
-use ctclient::certutils::get_dns_names;
+use ctclient_async::CTClient;
+use ctclient_async::certutils::get_dns_names;
 
 #[tokio::main]
 async fn main() {

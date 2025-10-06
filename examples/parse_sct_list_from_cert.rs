@@ -3,9 +3,9 @@ use std::time::{Duration, SystemTime};
 
 use openssl::x509::X509;
 
-use ctclient::CTClient;
-use ctclient::google_log_list::LogList;
-use ctclient::utils::u8_to_hex;
+use ctclient_async::CTClient;
+use ctclient_async::google_log_list::LogList;
+use ctclient_async::utils::u8_to_hex;
 
 #[tokio::main]
 async fn main() {
@@ -23,7 +23,7 @@ async fn main() {
         eprintln!("Expected at least 2 certs.");
         exit(1);
     }
-    let sct_list = ctclient::SignedCertificateTimestamp::from_cert_sct_extension(
+    let sct_list = ctclient_async::SignedCertificateTimestamp::from_cert_sct_extension(
         chain[0].as_ref(),
         chain[1].as_ref(),
     )

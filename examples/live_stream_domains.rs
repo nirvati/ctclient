@@ -1,4 +1,4 @@
-use ctclient::{CTClient, certutils, google_log_list::LogList};
+use ctclient_async::{CTClient, certutils, google_log_list::LogList};
 use openssl::x509::X509;
 use std::io::Write;
 
