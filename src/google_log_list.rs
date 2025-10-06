@@ -1,7 +1,7 @@
 //! Downloading of log list from Google.
 
-use crate::internal::new_http_client;
 use crate::Error;
+use crate::internal::new_http_client;
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -54,19 +54,21 @@ pub enum LogState {
 }
 
 impl LogList {
-    /// Download the log list at runtime from [`https://www.gstatic.com/ct/log_list/v2/log_list.json`](https://www.gstatic.com/ct/log_list/v2/log_list.json).
-    pub fn get() -> Result<LogList, Error> {
-        LogList::get_with_url("https://www.gstatic.com/ct/log_list/v2/log_list.json")
+    /// Download the log list at runtime from [`https://www.gstatic.com/ct/log_list/v3/log_list.json`](https://www.gstatic.com/ct/log_list/v3/log_list.json).
+    pub async fn get() -> Result<LogList, Error> {
+        LogList::get_with_url("https://www.gstatic.com/ct/log_list/v3/log_list.json").await
     }
 
     /// Download the log list at runtime.
-    pub fn get_with_url(url: &str) -> Result<LogList, Error> {
+    pub async fn get_with_url(url: &str) -> Result<LogList, Error> {
         let client = new_http_client()?;
         let json: ResponseJSON = client
             .get(url)
             .send()
+            .await
             .map_err(|e| Error::NetIO(e))?
             .json()
+            .await
             .map_err(|e| Error::MalformedResponseBody(format!("{}", e)))?;
         let mut hm: HashMap<Vec<u8>, Log> =
             HashMap::with_capacity(json.operators.iter().map(|x| x.logs.len()).sum());
@@ -96,7 +98,7 @@ impl LogList {
                         return Err(Error::MalformedResponseBody(format!(
                             "Invalid log state object: {:?}",
                             &log.state
-                        )))
+                        )));
                     }
                 };
                 hm.insert(
@@ -120,15 +122,19 @@ impl LogList {
     }
 }
 
-#[test]
-fn test() {
-    let ll = LogList::get().unwrap();
-    let nb_logs = ll.map_id_to_log.len();
-    assert!(nb_logs > 0);
-    assert_eq!(
-        ll.find_by_id(&base64::decode("sh4FzIuizYogTodm+Su5iiUgZ2va+nDnsklTLe+LkF4=").unwrap())
-            .unwrap()
-            .base_url,
-        "https://ct.googleapis.com/logs/argon2020/"
-    );
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn test() {
+        let ll = LogList::get().await.unwrap();
+        let nb_logs = ll.map_id_to_log.len();
+        assert!(nb_logs > 0);
+        assert_eq!(
+            ll.find_by_id(&base64::decode("sh4FzIuizYogTodm+Su5iiUgZ2va+nDnsklTLe+LkF4=").unwrap())
+                .unwrap()
+                .base_url,
+            "https://ct.googleapis.com/logs/argon2020/"
+        );
+    }
 }

@@ -61,14 +61,14 @@ fn test_inclusion_proof_parts() {
 /// Fetch the required inclusion proof from the server and see if it convinces us that `leaf_hash` is
 /// in the tree with hash `tree_hash` and size `tree_size`. On success, return the index number of the
 /// leaf corresponding with the hash.
-pub fn check_inclusion_proof(
-    client: &reqwest::blocking::Client,
+pub async fn check_inclusion_proof(
+    client: &reqwest::Client,
     base_url: &reqwest::Url,
     tree_size: u64,
     tree_hash: &[u8; 32],
     leaf_hash: &[u8; 32],
 ) -> Result<u64, Error> {
-    let res = fetch_inclusion_proof(client, base_url, tree_size, leaf_hash)?;
+    let res = fetch_inclusion_proof(client, base_url, tree_size, leaf_hash).await?;
     if &res.calculated_tree_hash != tree_hash {
         return Err(Error::InvalidInclusionProof {
             tree_size,
@@ -88,8 +88,8 @@ pub struct FetchInclusionProofResult {
     pub leaf_index: u64,
 }
 
-pub fn fetch_inclusion_proof(
-    client: &reqwest::blocking::Client,
+pub async fn fetch_inclusion_proof(
+    client: &reqwest::Client,
     base_url: &reqwest::Url,
     tree_size: u64,
     leaf_hash: &[u8; 32],
@@ -105,7 +105,7 @@ pub fn fetch_inclusion_proof(
             ])
             .map_err(|e| Error::Unknown(format!("{}", e)))?
         ),
-    )?;
+    ).await?;
     let leaf_index = json.leaf_index;
     if json.leaf_index >= tree_size {
         return Err(Error::InvalidInclusionProof {

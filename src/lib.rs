@@ -26,6 +26,8 @@ extern crate lazy_static;
 
 use std::{fmt, io, path};
 
+use futures::StreamExt;
+use futures::pin_mut;
 use log::{info, warn};
 use openssl::pkey::PKey;
 use openssl::x509::X509;
@@ -36,7 +38,7 @@ pub use sth::SignedTreeHead;
 
 use crate::internal::openssl_ffi::{x509_clone, x509_make_a_looks_like_issued_by_b};
 use crate::internal::{
-    check_consistency_proof, check_inclusion_proof, fetch_inclusion_proof, Leaf,
+    Leaf, check_consistency_proof, check_inclusion_proof, fetch_inclusion_proof,
 };
 
 mod sct;
@@ -173,20 +175,55 @@ impl SthResult {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-      Error::Unknown(desc) => write!(f, "{}", desc),
-      Error::InvalidArgument(desc) => write!(f, "Invalid argument: {}", desc),
-      Error::FileIO(path, e) => write!(f, "{}: {}", path.to_string_lossy(), &e),
-      Error::NetIO(e) => write!(f, "Network IO error: {}", &e),
-      Error::InvalidSignature(desc) => write!(f, "Invalid signature received: {}", &desc),
-      Error::InvalidResponseStatus(response_code) => write!(f, "Server responded with {} {}", response_code.as_u16(), response_code.as_str()),
-      Error::MalformedResponseBody(desc) => write!(f, "Unable to parse server response: {}", &desc),
-      Error::InvalidConsistencyProof {prev_size, new_size, desc} => write!(f, "Server provided an invalid consistency proof from {} to {}: {}", prev_size, new_size, &desc),
-      Error::CannotVerifyTreeData(desc) => write!(f, "The certificates returned by the server is inconsistent with the previously provided consistency proof: {}", &desc),
-      Error::BadCertificate(desc) => write!(f, "The certificate returned by the server has a problem: {}", &desc),
-      Error::InvalidInclusionProof {tree_size, leaf_index, desc} => write!(f, "Server provided an invalid inclusion proof of {} in tree with size {}: {}", leaf_index, tree_size, desc),
-      Error::BadSct(desc) => write!(f, "The SCT received is invalid: {}", desc),
-      Error::ExpectedEntry(leaf_index) => write!(f, "The server did not return the leaf with index {}, even though we believe it should be there.", leaf_index),
-    }
+            Error::Unknown(desc) => write!(f, "{}", desc),
+            Error::InvalidArgument(desc) => write!(f, "Invalid argument: {}", desc),
+            Error::FileIO(path, e) => write!(f, "{}: {}", path.to_string_lossy(), &e),
+            Error::NetIO(e) => write!(f, "Network IO error: {}", &e),
+            Error::InvalidSignature(desc) => write!(f, "Invalid signature received: {}", &desc),
+            Error::InvalidResponseStatus(response_code) => write!(
+                f,
+                "Server responded with {} {}",
+                response_code.as_u16(),
+                response_code.as_str()
+            ),
+            Error::MalformedResponseBody(desc) => {
+                write!(f, "Unable to parse server response: {}", &desc)
+            }
+            Error::InvalidConsistencyProof {
+                prev_size,
+                new_size,
+                desc,
+            } => write!(
+                f,
+                "Server provided an invalid consistency proof from {} to {}: {}",
+                prev_size, new_size, &desc
+            ),
+            Error::CannotVerifyTreeData(desc) => write!(
+                f,
+                "The certificates returned by the server is inconsistent with the previously provided consistency proof: {}",
+                &desc
+            ),
+            Error::BadCertificate(desc) => write!(
+                f,
+                "The certificate returned by the server has a problem: {}",
+                &desc
+            ),
+            Error::InvalidInclusionProof {
+                tree_size,
+                leaf_index,
+                desc,
+            } => write!(
+                f,
+                "Server provided an invalid inclusion proof of {} in tree with size {}: {}",
+                leaf_index, tree_size, desc
+            ),
+            Error::BadSct(desc) => write!(f, "The SCT received is invalid: {}", desc),
+            Error::ExpectedEntry(leaf_index) => write!(
+                f,
+                "The server did not return the leaf with index {}, even though we believe it should be there.",
+                leaf_index
+            ),
+        }
     }
 }
 
@@ -200,7 +237,7 @@ impl fmt::Display for Error {
 pub struct CTClient {
     base_url: reqwest::Url,
     pub_key: PKey<openssl::pkey::Public>,
-    http_client: reqwest::blocking::Client,
+    http_client: reqwest::Client,
     latest_size: u64,
     latest_tree_hash: [u8; 32],
 }
@@ -231,11 +268,11 @@ impl CTClient {
     /// ```
     /// use ctclient::CTClient;
     /// use base64::decode;
-    /// // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v2/all_logs_list.json .
+    /// // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v3/all_logs_list.json .
     /// let public_key = decode("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE01EAhx4o0zPQrXTcYjgCt4MVFsT0Pwjzb1RwrM0lhWDlxAYPP6/gyMCXNkOn/7KFsjL7rwk78tHMpY8rXn8AYg==").unwrap();
     /// let client = CTClient::new_from_latest_th("https://ct.cloudflare.com/logs/nimbus2020/", &public_key).unwrap();
     /// ```
-    pub fn new_from_latest_th(base_url: &str, pub_key: &[u8]) -> Result<Self, Error> {
+    pub async fn new_from_latest_th(base_url: &str, pub_key: &[u8]) -> Result<Self, Error> {
         if !base_url.ends_with('/') {
             return Err(Error::InvalidArgument("baseUrl must end with /".to_owned()));
         }
@@ -244,7 +281,7 @@ impl CTClient {
         let http_client = new_http_client()?;
         let evp_pkey = PKey::public_key_from_der(pub_key)
             .map_err(|e| Error::InvalidArgument(format!("Error parsing public key: {}", &e)))?;
-        let sth = internal::check_tree_head(&http_client, &base_url, &evp_pkey)?;
+        let sth = internal::check_tree_head(&http_client, &base_url, &evp_pkey).await?;
         Ok(CTClient {
             base_url,
             pub_key: evp_pkey,
@@ -264,7 +301,7 @@ impl CTClient {
     /// ```
     /// use ctclient::{CTClient, utils};
     /// use base64::decode;
-    /// // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v2/all_logs_list.json .
+    /// // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v3/all_logs_list.json .
     /// let public_key = decode("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE01EAhx4o0zPQrXTcYjgCt4MVFsT0Pwjzb1RwrM0lhWDlxAYPP6/gyMCXNkOn/7KFsjL7rwk78tHMpY8rXn8AYg==").unwrap();
     /// use std::convert::TryInto;
     /// // Tree captured on 2020-05-12 15:34:11 UTC
@@ -300,7 +337,7 @@ impl CTClient {
     }
 
     /// Get the underlying http client used to call CT APIs.
-    pub fn get_reqwest_client(&self) -> &reqwest::blocking::Client {
+    pub fn get_reqwest_client(&self) -> &reqwest::Client {
         &self.http_client
     }
 
@@ -312,8 +349,8 @@ impl CTClient {
     }
 
     /// Calls `self.update()` with `None` as `cert_handler`.
-    pub fn light_update(&mut self) -> SthResult {
-        self.update(None::<fn(&[X509])>)
+    pub async fn light_update(&mut self) -> SthResult {
+        self.update(None::<fn(&[X509])>).await
     }
 
     /// Fetch the latest tree root, check all the new certificates if `cert_handler` is a Some, and update our
@@ -329,12 +366,13 @@ impl CTClient {
     /// in the future.
     ///
     /// Will only update the stored latest tree head if an [`Ok`](SthResult::Ok) is returned.
-    pub fn update<H>(&mut self, mut cert_handler: Option<H>) -> SthResult
+    pub async fn update<H>(&mut self, mut cert_handler: Option<H>) -> SthResult
     where
         H: FnMut(&[X509]),
     {
         let mut delaycheck = std::time::Instant::now();
         let sth = match internal::check_tree_head(&self.http_client, &self.base_url, &self.pub_key)
+            .await
         {
             Ok(s) => s,
             Err(e) => return SthResult::Err(e),
@@ -366,25 +404,34 @@ impl CTClient {
             Ordering::Less => {
                 // Make sure server isn't doing trick with us.
                 match internal::check_consistency_proof(
-          &self.http_client,
-          &self.base_url,
-          new_tree_size,
-          self.latest_size,
-          &new_tree_root,
-          &self.latest_tree_hash
-        ) {
-          Ok(_) => {
-            warn!("{} rolled back? {} -> {}", self.base_url.as_str(), self.latest_size, new_tree_size);
-            SthResult::Ok(sth)
-          },
-          Err(e) => {
-            SthResult::ErrWithSth(
-              Error::InvalidConsistencyProof {
-                prev_size: new_tree_size, new_size: self.latest_size, desc: format!("Server rolled back, and can't provide a consistency proof from the rolled back tree to the original tree: {}", e)
-              }, sth
-            )
-          }
-        }
+                    &self.http_client,
+                    &self.base_url,
+                    new_tree_size,
+                    self.latest_size,
+                    &new_tree_root,
+                    &self.latest_tree_hash,
+                ).await {
+                    Ok(_) => {
+                        warn!(
+                            "{} rolled back? {} -> {}",
+                            self.base_url.as_str(),
+                            self.latest_size,
+                            new_tree_size
+                        );
+                        SthResult::Ok(sth)
+                    }
+                    Err(e) => SthResult::ErrWithSth(
+                        Error::InvalidConsistencyProof {
+                            prev_size: new_tree_size,
+                            new_size: self.latest_size,
+                            desc: format!(
+                                "Server rolled back, and can't provide a consistency proof from the rolled back tree to the original tree: {}",
+                                e
+                            ),
+                        },
+                        sth,
+                    ),
+                }
             }
             Ordering::Greater => {
                 let consistency_proof_parts = match internal::check_consistency_proof(
@@ -394,22 +441,26 @@ impl CTClient {
                     new_tree_size,
                     &self.latest_tree_hash,
                     &new_tree_root,
-                ) {
+                ).await {
                     Ok(k) => k,
                     Err(e) => return SthResult::ErrWithSth(e, sth),
                 };
 
                 if cert_handler.is_some() {
                     let i_start = self.latest_size;
-                    let mut leafs = internal::get_entries(
+                    let leafs = internal::get_entries(
                         &self.http_client,
                         &self.base_url,
                         i_start..new_tree_size,
+                        500,
                     );
+                    // `get_entries` returns a stream backed by an async block which is !Unpin.
+                    // Pin it on the stack so we can `.next().await` without requiring `Unpin`.
+                    pin_mut!(leafs);
                     let mut leaf_hashes: Vec<[u8; 32]> = Vec::new();
                     leaf_hashes.reserve((new_tree_size - i_start) as usize);
                     for i in i_start..new_tree_size {
-                        match leafs.next() {
+                        match leafs.next().await {
                             Some(Ok(leaf)) => {
                                 leaf_hashes.push(leaf.hash);
                                 if let Err(e) = self.check_leaf(&leaf, &mut cert_handler) {
@@ -567,7 +618,7 @@ impl CTClient {
     /// an inclusion proof that backs the sct, and return the leaf index.
     ///
     /// Does not check the signature on the sct, and also does not check that the maximum merge delay has passed.
-    pub fn check_inclusion_proof_for_sct(
+    pub async fn check_inclusion_proof_for_sct(
         &self,
         sct: &SignedCertificateTimestamp,
     ) -> Result<u64, Error> {
@@ -579,18 +630,20 @@ impl CTClient {
             &th.1,
             &sct.derive_leaf_hash(),
         )
+        .await
     }
 
-    pub fn first_leaf_after(&self, timestamp: u64) -> Result<Option<(u64, Leaf)>, Error> {
+    pub async fn first_leaf_after(&self, timestamp: u64) -> Result<Option<(u64, Leaf)>, Error> {
         let mut low = 0u64;
         let mut high = self.latest_size;
         let mut last_leaf: Option<(u64, Leaf)> = None;
         while low < high {
             let mid = (low + high - 1) / 2;
-            let mut entries_iter =
-                internal::get_entries(&self.http_client, &self.base_url, mid..mid + 1);
-            entries_iter.batch_size = 1;
-            match entries_iter.next() {
+            let entries_iter =
+                internal::get_entries(&self.http_client, &self.base_url, mid..mid + 1, 1);
+            // Pin the async-stream-backed iterator so it can be polled across await points.
+            pin_mut!(entries_iter);
+            match entries_iter.next().await {
                 None => return Err(Error::ExpectedEntry(mid)),
                 Some(Err(e)) => return Err(e),
                 Some(Ok(got_entry)) => {
@@ -616,15 +669,15 @@ impl CTClient {
         }
     }
 
-    pub fn first_tree_head_after(&self, timestamp: u64) -> Result<Option<(u64, [u8; 32])>, Error> {
-        let fla = self.first_leaf_after(timestamp)?;
+    pub async fn first_tree_head_after(&self, timestamp: u64) -> Result<Option<(u64, [u8; 32])>, Error> {
+        let fla = self.first_leaf_after(timestamp).await?;
         if fla.is_none() {
             return Ok(None);
         }
         let fla = fla.unwrap();
         let tsize = fla.0 + 1;
         let inclusion_res =
-            fetch_inclusion_proof(&self.http_client, &self.base_url, tsize, &fla.1.hash)?;
+            fetch_inclusion_proof(&self.http_client, &self.base_url, tsize, &fla.1.hash).await?;
         if inclusion_res.leaf_index != fla.0 {
             return Err(Error::Unknown(
                 "inclusion result.leaf_index != expected".to_owned(),
@@ -633,8 +686,8 @@ impl CTClient {
         Ok(Some((tsize, inclusion_res.calculated_tree_hash)))
     }
 
-    pub fn rollback_to_timestamp(&mut self, timestamp: u64) -> Result<(), Error> {
-        let res = self.first_tree_head_after(timestamp)?;
+    pub async fn rollback_to_timestamp(&mut self, timestamp: u64) -> Result<(), Error> {
+        let res = self.first_tree_head_after(timestamp).await?;
         if res.is_none() {
             return Ok(());
         }
@@ -647,7 +700,7 @@ impl CTClient {
                 self.latest_size,
                 &thash,
                 &self.latest_tree_hash,
-            )?;
+            ).await?;
             self.latest_size = tsize;
             self.latest_tree_hash = thash;
             info!(
@@ -756,19 +809,24 @@ impl CTClient {
     }
 }
 
-#[test]
-fn as_bytes_test() {
-    let c = CTClient::new_from_latest_th("https://ct.googleapis.com/logs/argon2019/", &utils::hex_to_u8("3059301306072a8648ce3d020106082a8648ce3d030107034200042373109be1f35ef6986b6995961078ce49dbb404fc712c5a92606825c04a1aa1b0612d1b8714a9baf00133591d0530e94215e755d72af8b4a2ba45c946918756")).unwrap();
-    let mut bytes = c.as_bytes().unwrap();
-    println!("bytes: {}", &base64::encode(&bytes));
-    let mut c_clone = CTClient::from_bytes(&bytes).unwrap();
-    assert_eq!(c.latest_size, c_clone.latest_size);
-    assert_eq!(c.latest_tree_hash, c_clone.latest_tree_hash);
-    assert_eq!(c.base_url, c_clone.base_url);
-    c_clone.light_update().unwrap(); // test public key
-    let len = bytes.len();
-    bytes[len - 1] ^= 1;
-    CTClient::from_bytes(&bytes).expect_err("");
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn as_bytes_test() {
+        let c = CTClient::new_from_latest_th("https://ct.googleapis.com/logs/argon2019/", &utils::hex_to_u8("3059301306072a8648ce3d020106082a8648ce3d030107034200042373109be1f35ef6986b6995961078ce49dbb404fc712c5a92606825c04a1aa1b0612d1b8714a9baf00133591d0530e94215e755d72af8b4a2ba45c946918756")).await.unwrap();
+        let mut bytes = c.as_bytes().unwrap();
+        println!("bytes: {}", &base64::encode(&bytes));
+        let mut c_clone = CTClient::from_bytes(&bytes).unwrap();
+        assert_eq!(c.latest_size, c_clone.latest_size);
+        assert_eq!(c.latest_tree_hash, c_clone.latest_tree_hash);
+        assert_eq!(c.base_url, c_clone.base_url);
+        c_clone.light_update().await.unwrap(); // test public key
+        let len = bytes.len();
+        bytes[len - 1] ^= 1;
+        CTClient::from_bytes(&bytes).expect_err("");
+    }
 }
 
 #[cfg(test)]

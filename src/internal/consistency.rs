@@ -441,8 +441,8 @@ fn verify_consistency_proof_new_tree_leaf_hashes_test() {
 /// # Panics
 ///
 /// ...if prev_size >= next_size
-pub fn check_consistency_proof(
-    client: &reqwest::blocking::Client,
+pub async fn check_consistency_proof(
+    client: &reqwest::Client,
     base_url: &reqwest::Url,
     prev_size: u64,
     next_size: u64,
@@ -457,7 +457,7 @@ pub fn check_consistency_proof(
             "ct/v1/get-sth-consistency?first={}&second={}",
             prev_size, next_size
         ),
-    )?;
+    ).await?;
     let server_consistency_proof = server_consistency_proof.consistency;
     let mut parsed_server_proof: Vec<[u8; 32]> = Vec::new();
     parsed_server_proof.reserve(server_consistency_proof.len());

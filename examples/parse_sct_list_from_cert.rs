@@ -7,7 +7,8 @@ use ctclient::google_log_list::LogList;
 use ctclient::utils::u8_to_hex;
 use ctclient::CTClient;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
 
     let args: Vec<_> = std::env::args_os().collect();
@@ -31,7 +32,7 @@ fn main() {
         println!("Did not found any SCTs in the certificate.");
         exit(0);
     }
-    let ll = LogList::get().expect("Unable to fetch log list from Google.");
+    let ll = LogList::get().await.expect("Unable to fetch log list from Google.");
     for (i, sct) in sct_list.iter().enumerate() {
         println!("SCT {}:", i + 1);
         let log_id_b64 = base64::encode(&sct.log_id);
@@ -55,13 +56,13 @@ fn main() {
             {
                 println!("  Error: unable to verify SCT signature: {}", e);
             }
-            let lc = CTClient::new_from_latest_th(&log.base_url, &log.pub_key);
+            let lc = CTClient::new_from_latest_th(&log.base_url, &log.pub_key).await;
             if lc.is_err() {
                 println!("    unable to connect to log: {}", lc.unwrap_err());
                 continue;
             }
             let lc = lc.unwrap();
-            match lc.check_inclusion_proof_for_sct(&sct) {
+            match lc.check_inclusion_proof_for_sct(&sct).await {
                 Ok(index) => {
                     println!("    inclusion proof checked, leaf index is {}", index);
                 }
