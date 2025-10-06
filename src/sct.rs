@@ -84,7 +84,7 @@ impl SignedCertificateTimestamp {
                 extensions_data: raw_sct.extensions().to_vec(),
                 entry: SctEntry::PreCert {
                     tbs: tbs.clone(),
-                    issuer_key_hash: issuer_key_hash.clone(),
+                    issuer_key_hash,
                 },
                 signature_algorithm: raw_sct
                     .signature_algorithm()
@@ -110,7 +110,7 @@ impl SignedCertificateTimestamp {
                 &self.extensions_data,
             ),
             SctEntry::X509(x509) => {
-                leaf_hash_constructors::with_x509(&x509, self.timestamp, &self.extensions_data)
+                leaf_hash_constructors::with_x509(x509, self.timestamp, &self.extensions_data)
             }
         }
     }

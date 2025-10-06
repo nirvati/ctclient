@@ -22,11 +22,10 @@ fn sha256_test() {
 /// assert_eq!(&hex_to_u8("aabb"), b"\xaa\xbb");
 /// ```
 pub fn hex_to_u8(hex: &str) -> Vec<u8> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         panic!("partial hex?");
     }
-    let mut vec = Vec::new();
-    vec.reserve(hex.len() / 2);
+    let mut vec = Vec::with_capacity(hex.len() / 2);
     for i in 0..(hex.len() / 2) {
         let hex = &hex[i * 2..(i + 1) * 2];
         vec.push(u8::from_str_radix(hex, 16).unwrap());
@@ -62,8 +61,7 @@ fn u8_to_hex_test() {
 
 /// Calculate `sha256(0x01 || left || right)`
 pub fn combine_tree_hash(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
-    let mut buf = Vec::new();
-    buf.reserve(32 + 32 + 1);
+    let mut buf = Vec::with_capacity(32 + 32 + 1);
     buf.push(1);
     buf.extend_from_slice(left);
     buf.extend_from_slice(right);

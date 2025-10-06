@@ -180,7 +180,7 @@ pub fn verify_consistency_proof(
     let mut hashes = Vec::new();
     hashes.reserve(calculated_proof.len());
     if omit_first {
-        hashes.push(perv_root.clone());
+        hashes.push(*perv_root);
     }
     hashes.extend_from_slice(server_provided_proof);
     assert_eq!(hashes.len(), calculated_proof.len());

@@ -140,13 +140,13 @@ impl Drop for WrappedObjPointer {
     }
 }
 
-unsafe fn oid_to_obj(zero_terminated_oid: &'static str) -> WrappedObjPointer {
+unsafe fn oid_to_obj(zero_terminated_oid: &'static str) -> WrappedObjPointer { unsafe {
     let ptr = OBJ_txt2obj(zero_terminated_oid.as_ptr() as *const _, 1);
     if ptr.is_null() {
         panic!("OBJ_txt2obj failed.");
     }
     WrappedObjPointer(ptr)
-}
+}}
 
 lazy_static! {
     static ref POISON_ASN1_OBJECT: WrappedObjPointer =
@@ -160,7 +160,7 @@ lazy_static! {
 unsafe fn x509_remove_extension_by_obj(
     cert: &mut openssl::x509::X509,
     obj: *const ASN1_OBJECT,
-) -> Result<(), ErrorStack> {
+) -> Result<(), ErrorStack> { unsafe {
     let extpos = X509_get_ext_by_OBJ(cert.as_ptr(), obj, -1);
     if extpos == -1 {
         return Ok(());
@@ -172,7 +172,7 @@ unsafe fn x509_remove_extension_by_obj(
         X509_EXTENSION_free(ext);
         Ok(())
     }
-}
+}}
 
 pub fn x509_remove_poison(cert: &mut openssl::x509::X509) -> Result<(), ErrorStack> {
     unsafe { x509_remove_extension_by_obj(cert, POISON_ASN1_OBJECT.0) }
@@ -184,12 +184,12 @@ pub fn x509_remove_sct_list(
     unsafe { x509_remove_extension_by_obj(cert, SCT_LIST_ASN1_OBJECT.0) }
 }
 
-unsafe fn asn1_string_to_bytes<'a>(asn1_str: *mut openssl_sys::ASN1_STRING) -> &'a [u8] {
+unsafe fn asn1_string_to_bytes<'a>(asn1_str: *mut openssl_sys::ASN1_STRING) -> &'a [u8] { unsafe {
     let data_len = usize::try_from(openssl_sys::ASN1_STRING_length(asn1_str)).unwrap();
     let data_ptr = openssl_sys::ASN1_STRING_get0_data(asn1_str);
     assert!(!data_ptr.is_null());
     &*std::ptr::slice_from_raw_parts(data_ptr, data_len)
-}
+}}
 
 fn bytes_to_asn1_string(bytes: &[u8]) -> openssl::asn1::Asn1String {
     unsafe {
@@ -257,7 +257,7 @@ pub fn x509_to_tbs<R: AsRef<X509Ref>>(cert: &R) -> Result<Vec<u8>, ErrorStack> {
         owned_buf.set_len(size);
         openssl_sys::CRYPTO_free(
             buf as *mut _,
-            "openssl_ffi.rs\0".as_ptr() as *const _,
+            c"openssl_ffi.rs".as_ptr() as *const _,
             line!() as i32,
         );
         Ok(owned_buf)
@@ -305,7 +305,7 @@ pub enum SignatureAlgorithm {
 
 macro_rules! impl_get_data_fn {
     ($fnname:ident, $fn:expr) => {
-        pub fn $fnname<'a>(&'a self) -> &'a [u8] {
+        pub fn $fnname(&self) -> &[u8] {
             unsafe {
                 let mut ptr: *mut u8 = std::ptr::null_mut();
                 let size = $fn(self.as_ptr(), &mut ptr as *mut _);
@@ -365,11 +365,11 @@ pub fn x509_make_a_looks_like_issued_by_b(
             return Err(Error::BadCertificate("Bad subjectKeyIdentifier".to_owned()));
         }
         let key = &subj_auth_keyid[2..];
-        if &subj_auth_keyid[0..2] != &[0x04, key.len() as u8] {
+        if subj_auth_keyid[0..2] != [0x04, key.len() as u8] {
             return Err(Error::BadCertificate("Bad subjectKeyIdentifier".to_owned()));
         }
         let mut auth_data = vec![0x30, (key.len() + 2) as u8, 0x80, key.len() as u8];
-        auth_data.extend_from_slice(&key);
+        auth_data.extend_from_slice(key);
         x509_set_ext_data(a, &AUTHORITY_KEY_IDENTIFIER, &auth_data)?;
         Ok(())
     }

@@ -66,7 +66,7 @@ impl LogList {
             .get(url)
             .send()
             .await
-            .map_err(|e| Error::NetIO(e))?
+            .map_err(Error::NetIO)?
             .json()
             .await
             .map_err(|e| Error::MalformedResponseBody(format!("{}", e)))?;
@@ -117,7 +117,7 @@ impl LogList {
     }
 
     /// Lookup a [`Log`] by its 32-byte `log_id`.
-    pub fn find_by_id<'a, 'b>(&'a self, id: &'b [u8]) -> Option<&'a Log> {
+    pub fn find_by_id<'a>(&'a self, id: &[u8]) -> Option<&'a Log> {
         self.map_id_to_log.get(id)
     }
 }

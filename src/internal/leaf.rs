@@ -28,8 +28,7 @@ pub struct Leaf {
 
 impl Leaf {
     pub fn from_raw(leaf_input: &[u8], extra_data: &[u8]) -> Result<Self, Error> {
-        let mut hash_data = Vec::new();
-        hash_data.reserve(1 + leaf_input.len());
+        let mut hash_data = Vec::with_capacity(1 + leaf_input.len());
         hash_data.push(0);
         hash_data.extend_from_slice(leaf_input);
         let hash = utils::sha256(&hash_data);
@@ -56,7 +55,7 @@ impl Leaf {
         if leaf_input.len() < 2 {
             return err_invalid();
         }
-        let mut leaf_slice = &leaf_input[..];
+        let mut leaf_slice = leaf_input;
         let version = u8::from_be_bytes([leaf_slice[0]]);
         let leaf_type = u8::from_be_bytes([leaf_slice[1]]);
         if version != 0 || leaf_type != 0 {
@@ -100,7 +99,7 @@ impl Leaf {
                 // rest of leaf_slice parsed below this match statement.
 
                 // Extra data is [][]byte with all length u24.
-                let mut extra_slice = &extra_data[..];
+                let mut extra_slice = extra_data;
                 if extra_slice.len() < 3 {
                     return err_invalid_extra();
                 }
@@ -162,7 +161,7 @@ impl Leaf {
                   }
                 */
 
-                let mut extra_slice = &extra_data[..];
+                let mut extra_slice = extra_data;
                 if extra_slice.len() < 3 {
                     return err_invalid_extra();
                 }
@@ -264,10 +263,10 @@ pub mod leaf_hash_constructors {
                                                           // all there is left is just chain[0].
         assert!(x509_endcert.len() < 1 << 24);
         hash_data.extend_from_slice(&(x509_endcert.len() as u32).to_be_bytes()[1..4]); // len of x509
-        hash_data.extend_from_slice(&x509_endcert); // x509 data
+        hash_data.extend_from_slice(x509_endcert); // x509 data
         assert!(extensions_data.len() < 1 << 16);
         hash_data.extend_from_slice(&(extensions_data.len() as u16).to_be_bytes()); // len of extensions
-        hash_data.extend_from_slice(&extensions_data); // extensions
+        hash_data.extend_from_slice(extensions_data); // extensions
         utils::sha256(&hash_data)
     }
 
@@ -291,7 +290,7 @@ pub mod leaf_hash_constructors {
         hash_data.extend_from_slice(tbs); // tbs
         assert!(extensions_data.len() < 1 << 16);
         hash_data.extend_from_slice(&(extensions_data.len() as u16).to_be_bytes()); // len of extensions
-        hash_data.extend_from_slice(&extensions_data); // extensions
+        hash_data.extend_from_slice(extensions_data); // extensions
         utils::sha256(&hash_data)
     }
 }

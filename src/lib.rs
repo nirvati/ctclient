@@ -130,10 +130,7 @@ impl SthResult {
     }
 
     pub fn is_ok(&self) -> bool {
-        match self {
-            SthResult::Ok(_) => true,
-            _ => false,
-        }
+        matches!(self, SthResult::Ok(_))
     }
 
     pub fn is_err(&self) -> bool {
@@ -410,7 +407,9 @@ impl CTClient {
                     self.latest_size,
                     &new_tree_root,
                     &self.latest_tree_hash,
-                ).await {
+                )
+                .await
+                {
                     Ok(_) => {
                         warn!(
                             "{} rolled back? {} -> {}",
@@ -441,7 +440,9 @@ impl CTClient {
                     new_tree_size,
                     &self.latest_tree_hash,
                     &new_tree_root,
-                ).await {
+                )
+                .await
+                {
                     Ok(k) => k,
                     Err(e) => return SthResult::ErrWithSth(e, sth),
                 };
@@ -457,8 +458,8 @@ impl CTClient {
                     // `get_entries` returns a stream backed by an async block which is !Unpin.
                     // Pin it on the stack so we can `.next().await` without requiring `Unpin`.
                     pin_mut!(leafs);
-                    let mut leaf_hashes: Vec<[u8; 32]> = Vec::new();
-                    leaf_hashes.reserve((new_tree_size - i_start) as usize);
+                    let mut leaf_hashes: Vec<[u8; 32]> =
+                        Vec::with_capacity((new_tree_size - i_start) as usize);
                     for i in i_start..new_tree_size {
                         match leafs.next().await {
                             Some(Ok(leaf)) => {
@@ -669,7 +670,10 @@ impl CTClient {
         }
     }
 
-    pub async fn first_tree_head_after(&self, timestamp: u64) -> Result<Option<(u64, [u8; 32])>, Error> {
+    pub async fn first_tree_head_after(
+        &self,
+        timestamp: u64,
+    ) -> Result<Option<(u64, [u8; 32])>, Error> {
         let fla = self.first_leaf_after(timestamp).await?;
         if fla.is_none() {
             return Ok(None);
@@ -700,7 +704,8 @@ impl CTClient {
                 self.latest_size,
                 &thash,
                 &self.latest_tree_hash,
-            ).await?;
+            )
+            .await?;
             self.latest_size = tsize;
             self.latest_tree_hash = thash;
             info!(
@@ -730,7 +735,7 @@ impl CTClient {
             .pub_key
             .public_key_to_der()
             .map_err(|e| Error::Unknown(format!("While encoding public key: {}", &e)))?;
-        assert!(pub_key.len() < std::u32::MAX as usize);
+        assert!(pub_key.len() < u32::MAX as usize);
         v.extend_from_slice(&u32::to_be_bytes(pub_key.len() as u32));
         v.extend_from_slice(&pub_key);
         v.extend_from_slice(&utils::sha256(&v));
