@@ -12,8 +12,8 @@ fn main() {
 
     // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v2/all_logs_list.json .
     // Google's CT log updates very quickly so we use it here.
-    let public_key = base64::decode("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6Tx2p1yKY4015NyIYvdrk36es0uAc1zA4PQ+TGRY+3ZjUTIYY9Wyu+3q/147JG4vNVKLtDWarZwVqGkg6lAYzA==").unwrap();
-    const URL: &str = "https://ct.googleapis.com/logs/argon2020/";
+    let public_key = base64::decode("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEr+TzlCzfpie1/rJhgxnIITojqKk9VK+8MZoc08HjtsLzD8e5yjsdeWVhIiWCVk6Y6KomKTYeKGBv6xVu93zQug==").unwrap();
+    const URL: &str = "https://ct.googleapis.com/logs/us1/argon2025h2/";
     let mut client = CTClient::new_from_latest_th(URL, &public_key).unwrap();
     loop {
         let update_result = client.update(Some(|certs: &[X509]| {
