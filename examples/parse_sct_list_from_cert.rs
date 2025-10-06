@@ -3,9 +3,9 @@ use std::time::{Duration, SystemTime};
 
 use openssl::x509::X509;
 
+use ctclient::CTClient;
 use ctclient::google_log_list::LogList;
 use ctclient::utils::u8_to_hex;
-use ctclient::CTClient;
 
 #[tokio::main]
 async fn main() {
@@ -32,7 +32,9 @@ async fn main() {
         println!("Did not found any SCTs in the certificate.");
         exit(0);
     }
-    let ll = LogList::get().await.expect("Unable to fetch log list from Google.");
+    let ll = LogList::get()
+        .await
+        .expect("Unable to fetch log list from Google.");
     for (i, sct) in sct_list.iter().enumerate() {
         println!("SCT {}:", i + 1);
         let log_id_b64 = base64::encode(&sct.log_id);

@@ -4,13 +4,13 @@ use openssl::pkey::PKey;
 use openssl::sha::sha256;
 use openssl::x509::X509Ref;
 
+use crate::Error;
 use crate::internal::leaf_hash_constructors;
 use crate::internal::openssl_ffi::{
-    sct_list_from_x509, x509_clone, x509_remove_sct_list, x509_to_tbs, SCTVersion,
-    SignatureAlgorithm,
+    SCTVersion, SignatureAlgorithm, sct_list_from_x509, x509_clone, x509_remove_sct_list,
+    x509_to_tbs,
 };
 use crate::internal::verify_dss_raw;
-use crate::Error;
 
 fn to_unknown_err(openssl_err: openssl::error::ErrorStack) -> Error {
     Error::Unknown(format!("{}", openssl_err))

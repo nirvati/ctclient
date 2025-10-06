@@ -1,4 +1,4 @@
-use super::{internal, utils, CTClient};
+use super::{CTClient, internal, utils};
 
 #[tokio::test]
 async fn check_leaf_test() {

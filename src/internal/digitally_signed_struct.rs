@@ -1,8 +1,8 @@
 use log::trace;
 use openssl::pkey::PKey;
 
-use crate::utils;
 use crate::Error;
+use crate::utils;
 
 // https://docs.rs/rustls/0.15.2/src/rustls/msgs/enums.rs.html#720
 // We only need to handle these two cases because RFC says so.
@@ -54,7 +54,12 @@ pub fn verify_dss(
     let length = u16::from_be_bytes([dss[2], dss[3]]);
     let rest = &dss[4..];
     if rest.len() != length as usize {
-        return Err(Error::InvalidSignature(format!("Invalid dss: {}\n  It says there that there are {} bytes in the signature part, but I see {}.", &utils::u8_to_hex(dss), length, rest.len())));
+        return Err(Error::InvalidSignature(format!(
+            "Invalid dss: {}\n  It says there that there are {} bytes in the signature part, but I see {}.",
+            &utils::u8_to_hex(dss),
+            length,
+            rest.len()
+        )));
     }
 
     let signature_algorithm = match sig_type {

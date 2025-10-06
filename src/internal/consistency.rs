@@ -1,9 +1,9 @@
 use std::convert::TryInto;
 
+use crate::Error;
 use crate::internal::get_json;
 use crate::jsons;
 use crate::utils::{combine_tree_hash, largest_power_of_2_smaller_than, u8_to_hex};
-use crate::Error;
 use log::trace;
 
 /// Function used by
@@ -340,7 +340,12 @@ impl ConsistencyProofPart {
         if self.server_hash == calculated_hash {
             Ok(())
         } else {
-            Err(format!("Subtree {:?}: calculated that tree hash should be {}, but got {} from consistency check.", &self.subtree, u8_to_hex(&calculated_hash), u8_to_hex(&self.server_hash)))
+            Err(format!(
+                "Subtree {:?}: calculated that tree hash should be {}, but got {} from consistency check.",
+                &self.subtree,
+                u8_to_hex(&calculated_hash),
+                u8_to_hex(&self.server_hash)
+            ))
         }
     }
 }
@@ -457,7 +462,8 @@ pub async fn check_consistency_proof(
             "ct/v1/get-sth-consistency?first={}&second={}",
             prev_size, next_size
         ),
-    ).await?;
+    )
+    .await?;
     let server_consistency_proof = server_consistency_proof.consistency;
     let mut parsed_server_proof: Vec<[u8; 32]> = Vec::new();
     parsed_server_proof.reserve(server_consistency_proof.len());

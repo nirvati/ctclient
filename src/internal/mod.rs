@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use log::{debug, trace};
 use openssl::pkey::PKey;
 
-use crate::{jsons, utils, Error, SignedTreeHead};
+use crate::{Error, SignedTreeHead, jsons, utils};
 pub use consistency::*;
 pub use digitally_signed_struct::*;
 pub use getentries::*;
@@ -98,7 +98,10 @@ pub async fn check_tree_head(
         ))
     })?;
     if root_hash.len() != 32 {
-        return Err(Error::MalformedResponseBody(format!("Invalid server response: sha256_root_hash should have length of 32. Server response is {:?}", &response)));
+        return Err(Error::MalformedResponseBody(format!(
+            "Invalid server response: sha256_root_hash should have length of 32. Server response is {:?}",
+            &response
+        )));
     }
     let dss = base64::decode(&response.tree_head_signature).map_err(|e| {
         Error::MalformedResponseBody(format!(

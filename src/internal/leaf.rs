@@ -1,9 +1,9 @@
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
+use crate::Error;
 use crate::jsons;
 use crate::utils;
-use crate::Error;
 
 /// A parsed leaf.
 ///
@@ -255,12 +255,12 @@ pub mod leaf_hash_constructors {
     pub fn with_x509(x509_endcert: &[u8], timestamp: u64, extensions_data: &[u8]) -> [u8; 32] {
         let mut hash_data: Vec<u8> = Vec::new();
         hash_data.push(0); // hash type = leaf data
-                           // Merkle tree leaf_input:
+        // Merkle tree leaf_input:
         hash_data.push(0); // version = 0
         hash_data.push(0); // leaf type = 0
         hash_data.extend_from_slice(&timestamp.to_be_bytes()); // timestamp
         hash_data.extend_from_slice(&0u16.to_be_bytes()); // entry type = x509_entry
-                                                          // all there is left is just chain[0].
+        // all there is left is just chain[0].
         assert!(x509_endcert.len() < 1 << 24);
         hash_data.extend_from_slice(&(x509_endcert.len() as u32).to_be_bytes()[1..4]); // len of x509
         hash_data.extend_from_slice(x509_endcert); // x509 data
@@ -279,7 +279,7 @@ pub mod leaf_hash_constructors {
         assert_eq!(issuer_key_hash.len(), 32);
         let mut hash_data: Vec<u8> = Vec::new();
         hash_data.push(0); // hash type = leaf data
-                           // Merkle tree leaf_input:
+        // Merkle tree leaf_input:
         hash_data.push(0); // version = 0
         hash_data.push(0); // leaf type = 0
         hash_data.extend_from_slice(&timestamp.to_be_bytes()); // timestamp

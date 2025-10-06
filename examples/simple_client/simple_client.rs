@@ -5,12 +5,13 @@ use std::process::exit;
 use log::LevelFilter;
 use openssl::x509::X509;
 use rusqlite::types::Value;
-use rusqlite::{Connection, OptionalExtension, NO_PARAMS};
+use rusqlite::{Connection, OptionalExtension};
 
-use ctclient::certutils::get_dns_names;
 use ctclient::CTClient;
+use ctclient::certutils::get_dns_names;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::builder()
         .filter_module("ctclient", LevelFilter::Info)
         .init();
@@ -30,7 +31,7 @@ fn main() {
     if save_db
         .query_row(
             "SELECT null FROM sqlite_master WHERE name = 'ctlogs'",
-            NO_PARAMS,
+            [],
             |_| Ok(()),
         )
         .optional()
@@ -41,22 +42,22 @@ fn main() {
             .execute_batch(include_str!("save_db_init.sql"))
             .expect("Can't run init.sql");
     }
-    let (url, pub_key, init_tree_size, init_tree_hash) = save_db
+    let (url, pub_key, init_tree_size, init_tree_hash): (String, Vec<u8>, u64, Vec<u8>) = save_db
         .query_row(
             "SELECT url, pub_key, checked_tree_size, checked_tree_head FROM ctlogs",
-            NO_PARAMS,
+            [],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, Vec<u8>>(1)?,
-                    u64::try_from(row.get_raw(2).as_i64()?).expect("negative tree size?"),
+                    u64::try_from(row.get::<_, i64>(2)?).expect("negative tree size?"),
                     row.get::<_, Vec<u8>>(3)?,
                 ))
             },
         )
         .unwrap();
     let mut client = if init_tree_size == 0 && init_tree_hash == [0u8; 32] {
-        CTClient::new_from_latest_th(&url, &pub_key).unwrap()
+        CTClient::new_from_latest_th(&url, &pub_key).await.unwrap()
     } else {
         CTClient::new_from_perv_tree_hash(
             &url,
@@ -82,7 +83,7 @@ fn main() {
       for n in dns_names.iter_mut() {
         *n = n.to_ascii_lowercase();
         if n.ends_with(".merkleforest.xyz") || n == "merkleforest.xyz" {
-          save_db.execute(r#"INSERT INTO "found_my_certs" (log_id, x509_der, ca_der) VALUES (0, ?, ?);"#, &[
+          save_db.execute(r#"INSERT INTO "found_my_certs" (log_id, x509_der, ca_der) VALUES (0, ?, ?);"#, [
             Value::Blob(head.to_der().unwrap()),
             Value::Blob(certs[1].to_der().unwrap())
           ]).expect("Unable to record cert");
@@ -90,12 +91,12 @@ fn main() {
           break;
         }
       }
-    }));
+    })).await;
         if let Some(sth) = sthresult.tree_head() {
-            save_db.execute(r#"INSERT INTO "received_signed_tree_heads" (log_id, tree_size, "timestamp", tree_hash, signature) VALUES (0, ?, ?, ?, ?)"#, &[
-        Value::Integer(sth.tree_size.try_into().unwrap()), Value::Integer(sth.timestamp.try_into().unwrap()),
-        Value::Blob(sth.root_hash.to_vec()), Value::Blob(sth.signature.to_vec())
-      ]).expect("Failed to insert");
+            save_db.execute(r#"INSERT INTO "received_signed_tree_heads" (log_id, tree_size, "timestamp", tree_hash, signature) VALUES (0, ?, ?, ?, ?)"#, [
+                Value::Integer(sth.tree_size.try_into().unwrap()), Value::Integer(sth.timestamp.try_into().unwrap()),
+                Value::Blob(sth.root_hash.to_vec()), Value::Blob(sth.signature.to_vec())
+            ]).expect("Failed to insert");
         }
         if sthresult.is_err() {
             eprintln!("Update error: {}", &sthresult.unwrap_err());
@@ -106,10 +107,10 @@ fn main() {
                 std::thread::sleep(std::time::Duration::from_secs(10));
             } else {
                 last_thash = new_thash;
-                save_db.execute(r#"UPDATE ctlogs SET checked_tree_size = ?, checked_tree_head = ? WHERE url = ?"#, &[
-          Value::Integer(th.tree_size.try_into().unwrap()), Value::Blob(th.root_hash.to_vec()),
-          Value::Text(url.clone())
-        ]).expect("Failed to update state");
+                save_db.execute(r#"UPDATE ctlogs SET checked_tree_size = ?, checked_tree_head = ? WHERE url = ?"#, [
+                    Value::Integer(th.tree_size.try_into().unwrap()), Value::Blob(th.root_hash.to_vec()),
+                    Value::Text(url.clone())
+                ]).expect("Failed to update state");
             }
         }
     }

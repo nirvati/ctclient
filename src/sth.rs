@@ -1,6 +1,6 @@
 use openssl::pkey::PKey;
 
-use crate::{internal, Error};
+use crate::{Error, internal};
 
 /// An unverified *signed tree head* (STH), as returned from the server. This encapsulate the state of the tree at
 /// some point in time.

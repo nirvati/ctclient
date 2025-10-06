@@ -4,11 +4,11 @@ use std::ops::Range;
 use async_stream::try_stream;
 use futures::Stream;
 
-use crate::jsons;
 use crate::Error;
+use crate::jsons;
 
-use super::get_json;
 use super::Leaf;
+use super::get_json;
 
 /// Request leaf entries from the CT log. Does not verify if these entries are
 /// consistent with the tree or anything like that. Returns an iterator over the

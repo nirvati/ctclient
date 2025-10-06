@@ -1,7 +1,7 @@
+use crate::Error;
 use crate::internal::get_json;
 use crate::jsons::AuditProof;
 use crate::utils::{combine_tree_hash, u8_to_hex};
-use crate::Error;
 use std::convert::TryInto;
 use std::ops::Range;
 
@@ -105,7 +105,8 @@ pub async fn fetch_inclusion_proof(
             ])
             .map_err(|e| Error::Unknown(format!("{}", e)))?
         ),
-    ).await?;
+    )
+    .await?;
     let leaf_index = json.leaf_index;
     if json.leaf_index >= tree_size {
         return Err(Error::InvalidInclusionProof {
