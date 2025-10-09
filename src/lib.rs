@@ -50,6 +50,12 @@ pub mod internal;
 pub mod jsons;
 pub mod utils;
 
+#[cfg(not(any(feature = "native-tls", feature = "rustls-tls")))]
+compile_error!("You must enable either the `native-tls` or `rustls-tls` feature.");
+
+#[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
+compile_error!("You must enable only one of the `native-tls` and `rustls-tls` features, not both.");
+
 /// Errors that this library could produce.
 #[derive(Debug)]
 pub enum Error {
