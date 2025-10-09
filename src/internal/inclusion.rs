@@ -15,7 +15,7 @@ use std::ops::Range;
 /// # Examples
 ///
 /// ```
-/// # use ctclient::internal::inclusion_proof_parts;
+/// # use ctclient_async::internal::inclusion_proof_parts;
 /// // Examples from https://tools.ietf.org/html/rfc6962#section-2.1.3
 /// assert_eq!(inclusion_proof_parts(7, 0), vec![1..2, 2..4, 4..7]);
 /// assert_eq!(inclusion_proof_parts(7, 3), vec![2..3, 0..2, 4..7]);

@@ -18,7 +18,7 @@ fn sha256_test() {
 ///
 /// # Example:
 /// ```rust
-/// # use ctclient::utils::hex_to_u8;
+/// # use ctclient_async::utils::hex_to_u8;
 /// assert_eq!(&hex_to_u8("aabb"), b"\xaa\xbb");
 /// ```
 pub fn hex_to_u8(hex: &str) -> Vec<u8> {
@@ -37,7 +37,7 @@ pub fn hex_to_u8(hex: &str) -> Vec<u8> {
 ///
 /// # Example:
 /// ```rust
-/// # use ctclient::utils::u8_to_hex;
+/// # use ctclient_async::utils::u8_to_hex;
 /// assert_eq!(&u8_to_hex(b"\xaa\xbb"), "aabb");
 /// ```
 pub fn u8_to_hex(bytes: &[u8]) -> String {

@@ -24,7 +24,7 @@ use log::trace;
 /// # Example
 ///
 /// ```
-/// # use ctclient::internal::consistency_proof_parts;
+/// # use ctclient_async::internal::consistency_proof_parts;
 /// // Examples from RFC 6962 2.1.3 (https://tools.ietf.org/html/rfc6962#section-2.1.3)
 /// assert_eq!(consistency_proof_parts(3, 7), vec![(2, 3), (3, 4), (0, 2), (4, 7)]);
 /// assert_eq!(consistency_proof_parts(4, 7), vec![(0, 4), (4, 7)]);

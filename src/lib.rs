@@ -269,11 +269,13 @@ impl CTClient {
     /// # Example
     ///
     /// ```
-    /// use ctclient::CTClient;
+    /// use ctclient_async::CTClient;
     /// use base64::decode;
+    /// # tokio_test::block_on(async {
     /// // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v3/all_logs_list.json .
-    /// let public_key = decode("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE01EAhx4o0zPQrXTcYjgCt4MVFsT0Pwjzb1RwrM0lhWDlxAYPP6/gyMCXNkOn/7KFsjL7rwk78tHMpY8rXn8AYg==").unwrap();
-    /// let client = CTClient::new_from_latest_th("https://ct.cloudflare.com/logs/nimbus2020/", &public_key).unwrap();
+    /// let public_key = decode("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGoAaFRkZI3m0+qB5jo3VwdzCtZaSfpTgw34UfAoNLUaonRuxQWUMX5jEWhd5gVtKFEHsr6ldDqsSGXHNQ++7lw==").unwrap();
+    /// let client = CTClient::new_from_latest_th("https://ct.cloudflare.com/logs/nimbus2025/", &public_key).await.unwrap();
+    /// # });
     /// ```
     pub async fn new_from_latest_th(base_url: &str, pub_key: &[u8]) -> Result<Self, Error> {
         if !base_url.ends_with('/') {
@@ -302,7 +304,7 @@ impl CTClient {
     /// # Example
     ///
     /// ```
-    /// use ctclient::{CTClient, utils};
+    /// use ctclient_async::{CTClient, utils};
     /// use base64::decode;
     /// // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v3/all_logs_list.json .
     /// let public_key = decode("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE01EAhx4o0zPQrXTcYjgCt4MVFsT0Pwjzb1RwrM0lhWDlxAYPP6/gyMCXNkOn/7KFsjL7rwk78tHMpY8rXn8AYg==").unwrap();
