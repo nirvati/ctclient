@@ -131,10 +131,10 @@ mod tests {
         let nb_logs = ll.map_id_to_log.len();
         assert!(nb_logs > 0);
         assert_eq!(
-            ll.find_by_id(&base64::decode("sh4FzIuizYogTodm+Su5iiUgZ2va+nDnsklTLe+LkF4=").unwrap())
+            ll.find_by_id(&base64::decode("2AlVO5RPev/IFhlvlE+Fq7D4/F6HVSYPFdEucrtFSxQ=").unwrap())
                 .unwrap()
                 .base_url,
-            "https://ct.googleapis.com/logs/argon2020/"
+            "https://ct.googleapis.com/logs/eu1/xenon2026h2/"
         );
     }
 }
