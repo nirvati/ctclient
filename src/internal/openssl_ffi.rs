@@ -131,6 +131,13 @@ struct WrappedObjPointer(*mut ASN1_OBJECT);
 
 unsafe impl Sync for WrappedObjPointer {}
 
+// The raw pointer inside WrappedObjPointer is safe to send between threads because
+// we only ever create these once (at startup) and only read from them (they are
+// immutable ASN1_OBJECT values owned by OpenSSL). Mark Send as implemented so
+// `WrappedObjPointer` can be stored in `lazy_static` and referenced from multiple
+// threads. This is unsafe but correct for this usage pattern.
+unsafe impl Send for WrappedObjPointer {}
+
 impl Drop for WrappedObjPointer {
     fn drop(&mut self) {
         let ptr = self.0;
