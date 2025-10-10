@@ -10,10 +10,12 @@ async fn main() {
         eprintln!("Expected no arguments.");
         std::process::exit(1);
     }
+    
+    let mut tasks = vec![];
 
     let all_certs = LogList::get().await.expect("Failed to get log list");
     for (_id, log) in all_certs.map_id_to_log {
-        tokio::spawn(async move {
+        tasks.push(tokio::spawn(async move {
             // URL and public key copy-pasted from https://www.gstatic.com/ct/log_list/v3/all_logs_list.json .
             // Google's CT log updates very quickly so we use it here.
             let mut client = match CTClient::new_from_latest_th(&log.base_url, &log.pub_key).await {
@@ -49,6 +51,8 @@ async fn main() {
                 }
                 std::io::stdout().flush().unwrap();
             }
-        });
+        }));
     }
+    
+    futures::future::join_all(tasks).await;
 }
